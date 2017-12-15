@@ -16,8 +16,16 @@ le = preprocessing.LabelEncoder()
 
 le.fit(data['Protocol'])
 
-list(le.classes_)
+print("classes", list(le.classes_))
 
 encoded_P = le.transform(data['Protocol'])
 
+print("encoded", encoded_P)
+
 onehot_P = np_utils.to_categorical(encoded_P)
+
+print("one hot", onehot_P)
+
+dx_code = data['Symptoms'].str.replace("\[(.*?)\]", "", case=False)
+
+print(dx_code)
