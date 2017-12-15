@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.pipeline import Pipeline
 from sklearn import preprocessing
 
-data = pd.read_csv("./100lines.csv")
+data = pd.read_csv("./65k lines.csv")
 
 le = preprocessing.LabelEncoder()
 
@@ -26,6 +26,6 @@ onehot_P = np_utils.to_categorical(encoded_P)
 
 print("one hot", onehot_P)
 
-dx_code = data['Symptoms'].str.replace("\[(.*?)\]", "", case=False)
+dx_code = data['Diagnosis'].str.replace("\[(.*?)\]", "", case=False)
 
-print(dx_code)
+print("diagnosis codes", dx_code)
