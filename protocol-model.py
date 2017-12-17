@@ -10,22 +10,73 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.pipeline import Pipeline
 from sklearn import preprocessing
 
-data = pd.read_csv("./65k lines.csv")
+from copy import deepcopy
+from string import punctuation
+from random import shuffle
+import gensim
+from gensim.models.word2vec import Word2Vec # the word2vec model gensim class
+LabeledSentence = gensim.models.doc2vec.LabeledSentence # we'll talk about this down below
 
-le = preprocessing.LabelEncoder()
+from tqdm import tqdm
+tqdm.pandas(desc="progress-bar")
 
-le.fit(data['Protocol'])
+from nltk.tokenize import TweetTokenizer # a tweet tokenizer from nltk.
+tokenizer = TweetTokenizer()
 
-print("classes", list(le.classes_))
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-encoded_P = le.transform(data['Protocol'])
+def ingest():
+	data = pd.read_csv("./65k lines.csv")
 
-print("encoded", encoded_P)
+	# data['Diagnosis'] = data['Diagnosis'].str.replace("\[(.*?)\]", "", case=False)
+	print("diagnosis codes", data['Diagnosis'])
 
-onehot_P = np_utils.to_categorical(encoded_P)
+	le = preprocessing.LabelEncoder()
+	le.fit(data['Protocol'])
+	print("classes", list(le.classes_))
 
-print("one hot", onehot_P)
+	encoded_P = le.transform(data['Protocol'])
+	encoded_P = np_utils.to_categorical(encoded_P)
+	print("one hot", data['Protocol'])
 
-dx_code = data['Diagnosis'].str.replace("\[(.*?)\]", "", case=False)
+	return data['Diagnosis'], encoded_P
 
-print("diagnosis codes", dx_code)
+def tokenize(text):
+        # text = unicode(text.decode('utf-8').lower())
+        tokens = tokenizer.tokenize(text)
+	    # tokens = filter(lambda t: not t.startswith('@'), tokens)
+        return tokens
+
+def postprocess(data):
+    # data = data.head(n)
+    tokens = data.progress_map(tokenize)  ## progress_map is a variant of the map function plus a progress bar. Handy to monitor DataFrame creations.
+    # data.reset_index(inplace=True)
+    # data.drop('index', inplace=True, axis=1)
+    return tokens
+
+
+def labelizeText(text, label_type):
+    labelized = []
+    for i,v in tqdm(enumerate(text)):
+        label = '%s_%s'%(label_type,i)
+        labelized.append(LabeledSentence(v, [label]))
+    return labelized
+
+
+diagnosis, protocols = ingest()
+
+tokens = postprocess(diagnosis)
+
+x_train, x_test, y_train, y_test = train_test_split(np.array(tokens),
+                                                    np.array(protocols), test_size=0.2)
+
+x_train = labelizeText(x_train, 'TRAIN')
+x_test = labelizeText(x_test, 'TEST')
+
+text_w2v = Word2Vec(size=200, min_count=10)
+text_w2v.build_vocab([x.words for x in tqdm(x_train)])
+text_w2v.train([x.words for x in tqdm(x_train)], total_examples=text_w2v.corpus_count, epochs=text_w2v.iter)
+
+print(text_w2v.most_similar('dyspnea'))
+
