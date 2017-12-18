@@ -23,7 +23,7 @@ labels = le.transform(labels)
 labels = np_utils.to_categorical(labels)
 num_labels = len(le.classes_)
 
-vocab_size = 200
+vocab_size = 2000
 
 encoded_docs = [one_hot(d, vocab_size) for d in docs]
 
@@ -37,7 +37,11 @@ print(padded_docs)
 
 # define the model
 model = Sequential()
-model.add(Embedding(vocab_size, 8, input_length=max_length))
+model.add(Embedding(vocab_size, 128, input_length=max_length))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(8, activation='relu'))
 model.add(Flatten())
 model.add(Dense(num_labels, activation='softmax'))
 

@@ -1,9 +1,16 @@
 import numpy as np
 import pandas as pd
-from keras.models import Sequential
-from keras.layers import Dense
+
+
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras.utils import np_utils
+
+from keras.preprocessing import sequence
+from keras.models import Sequential
+from keras.layers.embeddings import Embedding
+from keras.layers.recurrent import LSTM
+from keras.layers.core import Dense, Dropout
+
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import LabelEncoder
@@ -43,8 +50,7 @@ def ingest():
 	return data['Diagnosis'], encoded_P
 
 def tokenize(text):
-        # text = unicode(text.decode('utf-8').lower())
-        tokens = tokenizer.tokenize(text)
+        tokens = tokenizer.tokenize(text.lower())
 	    # tokens = filter(lambda t: not t.startswith('@'), tokens)
         return tokens
 
@@ -63,6 +69,8 @@ def labelizeText(text, label_type):
         labelized.append(LabeledSentence(v, [label]))
     return labelized
 
+#w2c parameters
+vocab_dim = 200
 
 diagnosis, protocols = ingest()
 
@@ -74,9 +82,29 @@ x_train, x_test, y_train, y_test = train_test_split(np.array(tokens),
 x_train = labelizeText(x_train, 'TRAIN')
 x_test = labelizeText(x_test, 'TEST')
 
-text_w2v = Word2Vec(size=200, min_count=10)
+text_w2v = Word2Vec(size=vocab_dim, min_count=2)
 text_w2v.build_vocab([x.words for x in tqdm(x_train)])
-text_w2v.train([x.words for x in tqdm(x_train)], total_examples=text_w2v.corpus_count, epochs=text_w2v.iter)
+text_w2v.train([x.words for x in tqdm(x_train)], total_examples=text_w2v.corpus_count, epochs=text_w2v.iter*10)
 
-print(text_w2v.most_similar('dyspnea'))
+
+
+n_symbols = len(text_w2v.wv.vocab) - 1
+
+print("Number of words ", n_symbols)
+# text_w2v.wv.index2word[1]
+# text_w2v.wv.index2word.index("trauma")
+
+text_w2v.wv.save_word2vec_format(fname="vectors.txt", fvocab=None, binary=False)
+
+
+print(text_w2v.wv.most_similar('pain'))
+
+
+model = Sequential()
+model.add(Embedding(output_dim = vocab_dim,
+                    input_dim = n_symbols,
+                    mask_zero = True,
+                    weights = [embedding_weights],
+                    input_length = input_length))
+
 
