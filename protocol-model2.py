@@ -94,6 +94,7 @@ print(model.summary())
 
 # fit the model
 model.fit(padded_docs, labels, epochs=50, verbose=2)
+model.save('proto_model.h5')
 # evaluate the model
 
 loss, accuracy = model.evaluate(padded_docs, labels, verbose=2)
