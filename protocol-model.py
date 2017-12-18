@@ -36,7 +36,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 def ingest():
 	data = pd.read_csv("./65k lines.csv")
 
-	# data['Diagnosis'] = data['Diagnosis'].str.replace("\[(.*?)\]", "", case=False)
+	data['Diagnosis'] = data['Diagnosis'].str.replace("\[(.*?)\]", "", case=False)
 	print("diagnosis codes", data['Diagnosis'])
 
 	le = preprocessing.LabelEncoder()
@@ -96,15 +96,14 @@ print("Number of words ", n_symbols)
 
 text_w2v.wv.save_word2vec_format(fname="vectors.txt", fvocab=None, binary=False)
 
+print("File written: vectors.txt")
 
-print(text_w2v.wv.most_similar('pain'))
-
-
-model = Sequential()
-model.add(Embedding(output_dim = vocab_dim,
-                    input_dim = n_symbols,
-                    mask_zero = True,
-                    weights = [embedding_weights],
-                    input_length = input_length))
+# print(text_w2v.wv.most_similar('pain'))
 
 
+# model = Sequential()
+# model.add(Embedding(output_dim = vocab_dim,
+#                     input_dim = n_symbols,
+#                     mask_zero = True,
+#                     weights = [embedding_weights],
+#                     input_length = input_length))
