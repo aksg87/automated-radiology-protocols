@@ -10,6 +10,8 @@ from keras.utils import np_utils
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Flatten
+from keras.layers import LSTM
+from keras.layers import Dropout
 from keras.layers.embeddings import Embedding
 from keras.models import load_model
 
@@ -76,17 +78,13 @@ for word, i in tqdm(t.word_index.items()):
 		print("embedding_vector", np.shape(embedding_vector))
 		print("embedding_matrix", np.shape(embedding_matrix[i]))
 
-
 # define the model
 model = Sequential()
-
 e = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)
-
 model.add(e)
-model.add(Dense(64, activation='relu'))
-model.add(Dense(32, activation='relu'))
-model.add(Dense(8, activation='relu'))
-model.add(Flatten())
+model.add(Dropout(0.2))
+model.add(LSTM(100))
+model.add(Dropout(0.2))
 model.add(Dense(num_labels, activation='softmax'))
 
 # compile the model
