@@ -32,6 +32,17 @@ anatomy = le_anatomy.transform(anatomy)
 anatomy = np_utils.to_categorical(anatomy)
 num_anatomytypes = len(le_anatomy.classes_)
 
+
+#define exam type ordered
+exam = data['Exam'].astype(str)
+le_exam = preprocessing.LabelEncoder()
+le_exam.fit(exam)
+exam = le_exam.transform(exam)
+exam = np_utils.to_categorical(exam)
+num_examtypes = len(le_exam.classes_)
+
+
+
 #define protocol labels
 labels = data['Protocol']
 original_labels = labels
@@ -88,17 +99,20 @@ for word, i in tqdm(t.word_index.items()):
 diagnosis_input = Input(shape=(max_length,), dtype = 'int32', name='diagnosis_input')
 x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)(diagnosis_input)
 x = Dropout(0.2)(x)
-x = LSTM(100)(x)
+x = LSTM(30)(x)
 x = Dropout(0.2)(x)
 
 dense_out = Dense(64, activation='relu')(x)
 anatomy_input = Input(shape=(13,), name='anatomy_input')
-x = concatenate([dense_out,anatomy_input])
+exam_input = Input(shape=(275,), name='exam_input')
 
-x = Dense(20, activation='relu')(x)
+x = concatenate([dense_out,anatomy_input,exam_input])
+
+x = Dense(32, activation='relu')(x)
+x = Dense(32, activation='relu')(x)
 main_output = Dense(num_protolabels, activation='softmax', name='main_output')(x)
 
-model = Model(inputs=[diagnosis_input, anatomy_input], outputs=[main_output])
+model = Model(inputs=[diagnosis_input, anatomy_input, exam_input], outputs=[main_output])
 
 # compile model
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -107,7 +121,7 @@ model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accur
 print(model.summary())
 
 # fit the model
-model.fit([padded_docs,anatomy], labels, epochs=50, verbose=2)
+model.fit([padded_docs,anatomy,exam], labels, epochs=50, verbose=2)
 model.save('proto_model.h5')
 # evaluate the model
 
