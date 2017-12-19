@@ -26,6 +26,8 @@ docs = data['Diagnosis']
 
 #define labels
 labels = data['Protocol']
+original_labels = labels
+
 le = preprocessing.LabelEncoder()
 le.fit(labels)
 labels = le.transform(labels)
@@ -101,6 +103,17 @@ model.save('proto_model.h5')
 loss, accuracy = model.evaluate(padded_docs, labels, verbose=2)
 print('Accuracy: %f' % (accuracy*100))
 
+def customAccuracy(model, padded_docs, labels):
+	preds = model.predict(padded_docs)
+	converted_preds = list(map(convertSoftmax, preds))
+	untuple = lambda x_y: x_y[0]
+	converted_preds = list(map(untuple, converted_preds))
+
+	results_compare = list(zip(converted_preds, labels))
+	checkProtos = lambda protos_element: protos_element[0].__contains__(protos_element[1])
+	results = list(map(checkProtos, results_compare))
+
+	return (sum(results) / len(results))
 
 def queryModel(model, txt):
 	converted_txt = convertQuery(txt)
@@ -121,14 +134,12 @@ def convertQuery(txt):
 	temp_padded_docs = pad_sequences(temp_encoded_docs, maxlen=max_length, padding='post')
 	return temp_padded_docs
 
-
 def convertSoftmax(output):
-
 	if np.ndim(output) == 2:
 		[output] = output
 
 	# get top give indexes and sort them
-	ind = np.argpartition(output, -3)[-3:]
+	ind = np.argpartition(output, -5)[-5:]
 	ind = ind[np.argsort(output[ind])]
 	# protocols in descending order
 	protos = le.inverse_transform(ind)
@@ -136,4 +147,7 @@ def convertSoftmax(output):
 	probs = (output[ind])*100
 
 	return protos, probs
+
+def loadModel():
+	return  load_model('proto_model.h5')
 
