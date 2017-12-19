@@ -7,20 +7,17 @@ from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.text import one_hot
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import np_utils
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import Flatten
-from keras.layers import LSTM
-from keras.layers import Dropout
+from keras.layers import Input, Dense, Flatten, LSTM, Dropout
 from keras.layers.embeddings import Embedding
 from keras.models import load_model
+from keras.models import Model, Sequential
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn import preprocessing
-
 from tqdm import tqdm
 tqdm.pandas(desc="progress-bar")
 
+#input text
 data = pd.read_csv("./65k lines.csv")
 
 #define document text
@@ -78,16 +75,17 @@ for word, i in tqdm(t.word_index.items()):
 		print("embedding_vector", np.shape(embedding_vector))
 		print("embedding_matrix", np.shape(embedding_matrix[i]))
 
-# define the model
-model = Sequential()
-e = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)
-model.add(e)
-model.add(Dropout(0.2))
-model.add(LSTM(100))
-model.add(Dropout(0.2))
-model.add(Dense(num_labels, activation='softmax'))
 
-# compile the model
+# define keras model
+main_input = Input(shape=(max_length,), dtype = 'int32', name='main_input')
+x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)(main_input)
+x = Dropout(0.2)(x)
+x = LSTM(100)(x)
+x = Dropout(0.2)(x)
+main_output = Dense(num_labels, activation='softmax', name='main_output')(x)
+model = Model(inputs=[main_input], outputs=[main_output])
+
+# compile model
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # summarize the model
