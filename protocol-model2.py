@@ -11,6 +11,7 @@ from keras.layers import Input, Dense, Flatten, LSTM, Dropout
 from keras.layers.embeddings import Embedding
 from keras.models import load_model
 from keras.models import Model, Sequential
+from keras.layers import concatenate
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn import preprocessing
@@ -18,21 +19,28 @@ from tqdm import tqdm
 tqdm.pandas(desc="progress-bar")
 
 #input text
-data = pd.read_csv("./65k lines.csv")
+data = pd.read_csv("./65k.csv")
 
-#define document text
+#define dx document text
 docs = data['Diagnosis']
 
-#define labels
+#define anatomy document text
+anatomy = data['Anatomy'].astype(str)
+le_anatomy = preprocessing.LabelEncoder()
+le_anatomy.fit(anatomy)
+anatomy = le_anatomy.transform(anatomy)
+anatomy = np_utils.to_categorical(anatomy)
+num_anatomytypes = len(le_anatomy.classes_)
+
+#define protocol labels
 labels = data['Protocol']
 original_labels = labels
-
-le = preprocessing.LabelEncoder()
-le.fit(labels)
-labels = le.transform(labels)
+le_proto = preprocessing.LabelEncoder()
+le_proto.fit(labels)
+labels = le_proto.transform(labels)
 labels = np_utils.to_categorical(labels)
+num_protolabels = len(le_proto.classes_)
 
-num_labels = len(le.classes_)
 
 #prepare tokenizer
 t = Tokenizer()
@@ -77,13 +85,20 @@ for word, i in tqdm(t.word_index.items()):
 
 
 # define keras model
-main_input = Input(shape=(max_length,), dtype = 'int32', name='main_input')
-x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)(main_input)
+diagnosis_input = Input(shape=(max_length,), dtype = 'int32', name='diagnosis_input')
+x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)(diagnosis_input)
 x = Dropout(0.2)(x)
 x = LSTM(100)(x)
 x = Dropout(0.2)(x)
-main_output = Dense(num_labels, activation='softmax', name='main_output')(x)
-model = Model(inputs=[main_input], outputs=[main_output])
+
+dense_out = Dense(64, activation='relu')(x)
+anatomy_input = Input(shape=(13,), name='anatomy_input')
+x = concatenate([dense_out,anatomy_input])
+
+x = Dense(20, activation='relu')(x)
+main_output = Dense(num_protolabels, activation='softmax', name='main_output')(x)
+
+model = Model(inputs=[diagnosis_input, anatomy_input], outputs=[main_output])
 
 # compile model
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -92,7 +107,7 @@ model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accur
 print(model.summary())
 
 # fit the model
-model.fit(padded_docs, labels, epochs=50, verbose=2)
+model.fit([padded_docs,anatomy], labels, epochs=50, verbose=2)
 model.save('proto_model.h5')
 # evaluate the model
 
@@ -138,7 +153,7 @@ def convertSoftmax(output):
 	ind = np.argpartition(output, -5)[-5:]
 	ind = ind[np.argsort(output[ind])]
 	# protocols in descending order
-	protos = le.inverse_transform(ind)
+	protos = le_proto.inverse_transform(ind)
 	# probability
 	probs = (output[ind])*100
 
