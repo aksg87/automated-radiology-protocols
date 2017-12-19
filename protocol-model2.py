@@ -11,6 +11,7 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Flatten
 from keras.layers.embeddings import Embedding
+from keras.models import load_model
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn import preprocessing
@@ -78,8 +79,8 @@ for word, i in tqdm(t.word_index.items()):
 model = Sequential()
 
 e = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)
-model.add(e)
 
+model.add(e)
 model.add(Dense(64, activation='relu'))
 model.add(Dense(32, activation='relu'))
 model.add(Dense(8, activation='relu'))
@@ -99,4 +100,40 @@ model.save('proto_model.h5')
 
 loss, accuracy = model.evaluate(padded_docs, labels, verbose=2)
 print('Accuracy: %f' % (accuracy*100))
+
+
+def queryModel(model, txt):
+	converted_txt = convertQuery(txt)
+	pred = model.predict(converted_txt)
+	answer = convertSoftmax(pred)
+	return answer
+	
+def convertQuery(txt):
+	temp_docs = []
+	temp_docs.append(txt)
+	#integer encode documents
+
+	temp_encoded_docs = t.texts_to_sequences(temp_docs)
+	print(temp_encoded_docs)
+
+	# pad documents to length of 25 words
+	max_length = 15
+	temp_padded_docs = pad_sequences(temp_encoded_docs, maxlen=max_length, padding='post')
+	return temp_padded_docs
+
+
+def convertSoftmax(output):
+
+	if np.ndim(output) == 2:
+		[output] = output
+
+	# get top give indexes and sort them
+	ind = np.argpartition(output, -3)[-3:]
+	ind = ind[np.argsort(output[ind])]
+	# protocols in descending order
+	protos = le.inverse_transform(ind)
+	# probability
+	probs = (output[ind])*100
+
+	return protos, probs
 
