@@ -197,7 +197,7 @@ model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accur
 print(model.summary())
 
 # fit the model
-model.fit([padded_docs,anatomy,exam], labels, epochs=50, verbose=2)
+model.fit([padded_docs,anatomy,exam], labels, epochs=50, batch_size=128, verbose=2)
 model.save('proto_model.h5')
 plot_model(model, to_file='proto_model.png')
 # evaluate the model
