@@ -12,6 +12,10 @@ from keras.layers.embeddings import Embedding
 from keras.models import load_model
 from keras.models import Model, Sequential
 from keras.layers import concatenate
+from keras.utils import plot_model
+
+from IPython.display import SVG
+from keras.utils.vis_utils import model_to_dot
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn import preprocessing
@@ -42,7 +46,6 @@ exam = np_utils.to_categorical(exam)
 num_examtypes = len(le_exam.classes_)
 
 
-
 #define protocol labels
 labels = data['Protocol']
 original_labels = labels
@@ -52,6 +55,9 @@ labels = le_proto.transform(labels)
 labels = np_utils.to_categorical(labels)
 num_protolabels = len(le_proto.classes_)
 
+def convert_coded_label(label):
+	label = le_proto.inverse_transform(np.argmax(label))
+	return label
 
 #prepare tokenizer
 t = Tokenizer()
@@ -128,8 +134,12 @@ model.save('proto_model.h5')
 loss, accuracy = model.evaluate(padded_docs, labels, verbose=2)
 print('Accuracy: %f' % (accuracy*100))
 
-def customAccuracy(model, padded_docs, labels):
-	preds = model.predict(padded_docs)
+def customAccuracy(model, padded_docs, anatomy, exam, labels):
+
+	if np.ndim(labels[0])>0:
+		labels = list(map(convert_coded_label, labels))
+
+	preds = model.predict([padded_docs,anatomy,exam])
 	converted_preds = list(map(convertSoftmax, preds))
 	untuple = lambda x_y: x_y[0]
 	converted_preds = list(map(untuple, converted_preds))
@@ -138,7 +148,7 @@ def customAccuracy(model, padded_docs, labels):
 	checkProtos = lambda protos_element: protos_element[0].__contains__(protos_element[1])
 	results = list(map(checkProtos, results_compare))
 
-	return (sum(results) / len(results))
+	return (sum(results) / len(results)), results
 
 def queryModel(model, txt):
 	converted_txt = convertQuery(txt)
@@ -164,7 +174,7 @@ def convertSoftmax(output):
 		[output] = output
 
 	# get top give indexes and sort them
-	ind = np.argpartition(output, -5)[-5:]
+	ind = np.argpartition(output, -3)[-3:]
 	ind = ind[np.argsort(output[ind])]
 	# protocols in descending order
 	protos = le_proto.inverse_transform(ind)
