@@ -22,12 +22,12 @@ from sklearn import preprocessing
 from tqdm import tqdm
 tqdm.pandas(desc="progress-bar")
 
-def customAccuracy(model, padded_docs, anatomy, exam, labels):
+def customAccuracy(model, padded_dx, anatomy, exam, labels):
 
 	if np.ndim(labels[0])>0:
 		labels = list(map(convert_coded_label, labels))
 
-	preds = model.predict([padded_docs,anatomy,exam])
+	preds = model.predict([padded_dx,anatomy,exam])
 	converted_preds = list(map(convertSoftmax, preds))
 	untuple = lambda x_y: x_y[0]
 	converted_preds = list(map(untuple, converted_preds))
@@ -98,7 +98,7 @@ def convert_coded_label(label):
 data = pd.read_csv("./65k.csv")
 
 #define dx document text
-docs = data['Diagnosis']
+dx = data['Diagnosis']
 
 #define anatomy document text
 anatomy = data['Anatomy'].astype(str)
@@ -107,7 +107,6 @@ le_anatomy.fit(anatomy)
 anatomy = le_anatomy.transform(anatomy)
 anatomy = np_utils.to_categorical(anatomy)
 num_anatomytypes = len(le_anatomy.classes_)
-
 
 #define exam type ordered
 exam = data['Exam'].astype(str)
@@ -128,18 +127,18 @@ num_protolabels = len(le_proto.classes_)
 
 #prepare tokenizer
 t = Tokenizer()
-t.fit_on_texts(docs)
+t.fit_on_texts(dx)
 vocab_size = len(t.word_index) + 1
 print('vocab size', vocab_size)
 
 #integer encode documents
-encoded_docs = t.texts_to_sequences(docs)
-print(encoded_docs)
+encoded_dx = t.texts_to_sequences(dx)
+print(encoded_dx)
 
 # pad documents to length of 25 words
 max_length = 15
-padded_docs = pad_sequences(encoded_docs, maxlen=max_length, padding='post')
-print(padded_docs)
+padded_dx = pad_sequences(encoded_dx, maxlen=max_length, padding='post')
+print(padded_dx)
 
 # load the whole embedding into memory
 embeddings_index = dict()
@@ -155,7 +154,7 @@ print('Loaded %s word vectors.' % len(embeddings_index))
 dim_len = len(coefs)
 print('Dimension of vector %s.' % dim_len)
 
-# create a weight matrix for words in training docs
+# create a weight matrix for words in training dx
 embedding_matrix = zeros((vocab_size, dim_len))
 for word, i in tqdm(t.word_index.items()):
 	embedding_vector = embeddings_index.get(word)
@@ -202,10 +201,10 @@ print(model.summary())
 plot_model(model, to_file='proto_model.png')
 
 # fit the model
-model.fit([padded_docs,anatomy,exam], labels, epochs=50, batch_size=128, verbose=2)
+model.fit([padded_dx,anatomy,exam], labels, epochs=50, batch_size=128, verbose=2)
 model.save('proto_model.h5')
 # evaluate the model
 
-loss, accuracy = model.evaluate(padded_docs, labels, verbose=2)
+loss, accuracy = model.evaluate(padded_dx, labels, verbose=2)
 print('Accuracy: %f' % (accuracy*100))
 
