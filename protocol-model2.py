@@ -172,34 +172,38 @@ for word, i in tqdm(t.word_index.items()):
 #  keras modeleling 
 ####################
 
-diagnosis_input = Input(shape=(max_length,), dtype = 'int32', name='diagnosis_input')
-x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)(diagnosis_input)
+dx_input = Input(shape=(max_length,), dtype = 'int32', name='dx_input')
+x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=True)(dx_input)
 x = Dropout(0.2)(x)
 x = LSTM(30)(x)
 x = Dropout(0.2)(x)
+dx_out = Dense(64, activation='relu')(x)
 
-dense_out = Dense(64, activation='relu')(x)
 anatomy_input = Input(shape=(13,), name='anatomy_input')
+x = Dense(16, activation='relu')(anatomy_input)
+anatomy_out = Dense(16, activation='relu')(x)
+
 exam_input = Input(shape=(275,), name='exam_input')
+x = Dense(64, activation='relu')(exam_input)
+exam_out = Dense(64, activation='relu')(x)
 
-x = concatenate([dense_out,anatomy_input,exam_input])
-
-x = Dense(32, activation='relu')(x)
-x = Dense(32, activation='relu')(x)
+combined = concatenate([dx_out,anatomy_out,exam_out])
+x = Dense(128, activation='relu')(combined)
+x = Dense(128, activation='relu')(x)
 main_output = Dense(num_protolabels, activation='softmax', name='main_output')(x)
 
-model = Model(inputs=[diagnosis_input, anatomy_input, exam_input], outputs=[main_output])
+model = Model(inputs=[dx_input, anatomy_input, exam_input], outputs=[main_output])
 
 # compile model
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # summarize the model
 print(model.summary())
+plot_model(model, to_file='proto_model.png')
 
 # fit the model
 model.fit([padded_docs,anatomy,exam], labels, epochs=50, batch_size=128, verbose=2)
 model.save('proto_model.h5')
-plot_model(model, to_file='proto_model.png')
 # evaluate the model
 
 loss, accuracy = model.evaluate(padded_docs, labels, verbose=2)
