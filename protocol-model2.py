@@ -92,13 +92,12 @@ def convert_coded_label(label):
 	label = le_proto.inverse_transform(np.argmax(label))
 	return label
 
-
-
 #input text
-data = pd.read_csv("./65k.csv")
+data = pd.read_csv("./293k.csv", encoding='latin-1').astype(str)
 
-#define dx document text
+#define dx document and comment text
 dx = data['Diagnosis']
+comments = data['Comments']
 
 #define anatomy document text
 anatomy = data['Anatomy'].astype(str)
@@ -133,14 +132,17 @@ print('vocab size', vocab_size)
 
 #integer encode documents
 encoded_dx = t.texts_to_sequences(dx)
-print(encoded_dx)
+encoded_comments = t.texts_to_sequences(comments)
+
 
 # pad documents to length of 25 words
 max_length = 15
 padded_dx = pad_sequences(encoded_dx, maxlen=max_length, padding='post')
-print(padded_dx)
+padded_comments = pad_sequences(encoded_comments, maxlen=max_length, padding='post')
 
-# load the whole embedding into memory
+#####################################
+# load the whole mbedding into memory
+#####################################
 embeddings_index = dict()
 f = open('vectors.txt')
 for line in f:
@@ -172,26 +174,29 @@ for word, i in tqdm(t.word_index.items()):
 ####################
 
 dx_input = Input(shape=(max_length,), dtype = 'int32', name='dx_input')
-x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=True)(dx_input)
-x = Dropout(0.2)(x)
-x = LSTM(30)(x)
-x = Dropout(0.2)(x)
+x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)(dx_input)
+x = Flatten()(x)
 dx_out = Dense(64, activation='relu')(x)
+
+comments_input = Input(shape=(max_length,), dtype = 'int32', name='comments_input')
+x = Embedding(vocab_size, dim_len, weights=[embedding_matrix], input_length=max_length, trainable=False)(comments_input)
+x = Flatten()(x)
+comments_out = Dense(64, activation='relu')(x)
 
 anatomy_input = Input(shape=(13,), name='anatomy_input')
 x = Dense(16, activation='relu')(anatomy_input)
 anatomy_out = Dense(16, activation='relu')(x)
 
-exam_input = Input(shape=(275,), name='exam_input')
+exam_input = Input(shape=(num_examtypes,), name='exam_input')
 x = Dense(64, activation='relu')(exam_input)
 exam_out = Dense(64, activation='relu')(x)
 
-combined = concatenate([dx_out,anatomy_out,exam_out])
-x = Dense(128, activation='relu')(combined)
-x = Dense(128, activation='relu')(x)
+combined = concatenate([dx_out, comments_out, anatomy_out, exam_out])
+x = Dense(64, activation='relu')(combined)
+x = Dense(64, activation='relu')(x)
 main_output = Dense(num_protolabels, activation='softmax', name='main_output')(x)
 
-model = Model(inputs=[dx_input, anatomy_input, exam_input], outputs=[main_output])
+model = Model(inputs=[dx_input, comments_input, anatomy_input, exam_input], outputs=[main_output])
 
 # compile model
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -201,7 +206,7 @@ print(model.summary())
 plot_model(model, to_file='proto_model.png')
 
 # fit the model
-model.fit([padded_dx,anatomy,exam], labels, epochs=50, batch_size=128, verbose=2)
+model.fit([padded_dx,padded_comments, anatomy, exam], labels, epochs=50, batch_size=128, verbose=2)
 model.save('proto_model.h5')
 # evaluate the model
 
