@@ -34,24 +34,28 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 def ingest():
-	data = pd.read_csv("./65k lines.csv")
+    data = pd.read_csv("./293k.csv", encoding='latin-1').astype(str)
 
-	data['Diagnosis'] = data['Diagnosis'].str.replace("\[(.*?)\]", "", case=False)
-	print("diagnosis codes", data['Diagnosis'])
+    data['Diagnosis'] = data['Diagnosis'].str.replace("\[(.*?)\]", "", case=False)
+    data['Diagnosis'] = data['Diagnosis'].str.replace(r'[\(\)\d]+', '')
+    data['Diagnosis'] = data['Diagnosis'].str.replace('[^\w\s]','')
+    data['Diagnosis'] = data['Diagnosis'].str.replace('\r','')
 
-	le = preprocessing.LabelEncoder()
-	le.fit(data['Protocol'])
-	print("classes", list(le.classes_))
+    print("diagnosis codes", data['Diagnosis'])
 
-	encoded_P = le.transform(data['Protocol'])
-	encoded_P = np_utils.to_categorical(encoded_P)
-	print("one hot", data['Protocol'])
+    le = preprocessing.LabelEncoder()
+    le.fit(data['Protocol'])
+    print("classes", list(le.classes_))
 
-	return data['Diagnosis'], encoded_P
+    encoded_P = le.transform(data['Protocol'])
+    encoded_P = np_utils.to_categorical(encoded_P)
+    print("one hot", data['Protocol'])
+
+    return data['Diagnosis'], encoded_P
 
 def tokenize(text):
         tokens = tokenizer.tokenize(text.lower())
-	    # tokens = filter(lambda t: not t.startswith('@'), tokens)
+        # tokens = filter(lambda t: not t.startswith('@'), tokens)
         return tokens
 
 def postprocess(data):
@@ -77,14 +81,14 @@ diagnosis, protocols = ingest()
 tokens = postprocess(diagnosis)
 
 x_train, x_test, y_train, y_test = train_test_split(np.array(tokens),
-                                                    np.array(protocols), test_size=0.2)
+                                                    np.array(protocols), test_size=0.0)
 
 x_train = labelizeText(x_train, 'TRAIN')
 x_test = labelizeText(x_test, 'TEST')
 
 text_w2v = Word2Vec(size=vocab_dim, min_count=2)
 text_w2v.build_vocab([x.words for x in tqdm(x_train)])
-text_w2v.train([x.words for x in tqdm(x_train)], total_examples=text_w2v.corpus_count, epochs=text_w2v.iter*10)
+text_w2v.train([x.words for x in tqdm(x_train)], total_examples=text_w2v.corpus_count, epochs=text_w2v.iter*40)
 
 
 
@@ -98,7 +102,7 @@ text_w2v.wv.save_word2vec_format(fname="vectors.txt", fvocab=None, binary=False)
 
 print("File written: vectors.txt")
 
-# print(text_w2v.wv.most_similar('pain'))
+print(text_w2v.wv.most_similar('pain'))
 
 
 # model = Sequential()
